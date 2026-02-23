@@ -86,7 +86,7 @@ Forklaring:Bike_id lagres som INTEGER for å identifisere hver sykkel unikt. Ing
 Låse
 låse_nummer smallint NOT NULL
 
-Forklaring:Låsnummeret lagres som SMALLINT fordi hver stasjon har et begrenset antall låser som bare trenger å være unike innenfor sykkelstasjonen, og det kan ikke være null fordi en lås ikke endres over tid innenfor en stasjon.
+Forklaring:Låsnummeret lagres som SMALLINT fordi hver stasjon har et begrenset antall låser
 
 Kunde
 kunde-ID INTEGER
@@ -127,7 +127,7 @@ Forklaring:Bike_id lagres som INTEGER for å identifisere hver sykkel unikt. Ing
 Låse
 låse_nummer smallint NOT NULL
 
-Forklaring:Låsnummeret lagres som SMALLINT fordi hver stasjon har et begrenset antall låser som bare trenger å være unike innenfor sykkelstasjonen, og det kan ikke være null fordi en lås ikke endres over tid innenfor en stasjon.
+Forklaring:Låsnummeret kan ikke være null fordi en lås ikke endres over tid innenfor en stasjon.
 
 
 Kunde
@@ -518,7 +518,6 @@ Column	Size (bytes)
 stasjon_id	4
 navn	150
 sted	150
-Subtotal	304
 Totalt	304 bytes
 
 10 stasjon → 304 × 10 ≈ 3,040 bytes ≈ 3KB
