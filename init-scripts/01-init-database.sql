@@ -7,17 +7,9 @@
 -- ============================================================================
 -- Opprett database
 -- ============================================================================
-CREATE DATABASE sykkel_system
-WITH
-OWNER = postgres
-ENCODING = 'UTF8'
-LC_COLLATE = 'en_US.utf8'
-LC_CTYPE = 'en_US.utf8'
-TEMPLATE = template0
-CONNECTION LIMIT = -1;
+CREATE DATABASE sykkel_system;
 
--- Connect to the new database
-\c sykkel_system
+\connect sykkel_system
 
 -- ============================================================================
 -- Opprett grunnleggende tabeller
@@ -25,18 +17,19 @@ CONNECTION LIMIT = -1;
 
 CREATE TABLE stasjon(
     stasjon_id SERIAL PRIMARY KEY,
-    navn VARCHAR(150) NOT NULL,
-    sted VARCHAR(150) NOT NULL
+    navn VARCHAR(150) NOT NULL CHECK (char_length(navn) > 0),
+    sted VARCHAR(150) NOT NULL CHECK (char_length(sted) > 0)
 );
 
 CREATE TABLE låse(
     stasjon_id INT REFERENCES stasjon(stasjon_id),
-    låse_nummer SMALLINT NOT NULL,
+    låse_nummer SMALLINT NOT NULL CHECK (låse_nummer > 0),
     PRIMARY KEY (stasjon_id, låse_nummer)
 );
 
 CREATE TABLE sykkel(
     sykkel_id SERIAL PRIMARY KEY,
+    tatt_i_bruk TIMESTAMP NULL CHECK (tatt_i_bruk <= NOW()),
     stasjon_id INT,
     låse_nummer SMALLINT,
     FOREIGN KEY (stasjon_id, låse_nummer)
@@ -45,10 +38,14 @@ CREATE TABLE sykkel(
 
 CREATE TABLE kunde(
     kunde_id SERIAL PRIMARY KEY,
-    mobilnummer VARCHAR(25) NOT NULL UNIQUE,
-    epost VARCHAR(150) NOT NULL UNIQUE,
-    fornavn VARCHAR(150) NOT NULL,
+    mobilnummer VARCHAR(25) NOT NULL UNIQUE
+        CHECK (char_length(mobilnummer) BETWEEN 6 AND 25),
+    epost VARCHAR(150) NOT NULL UNIQUE
+        CHECK (position('@' in epost) > 1),
+    fornavn VARCHAR(150) NOT NULL
+        CHECK (char_length(fornavn) > 0),
     etternavn VARCHAR(150) NOT NULL
+        CHECK (char_length(etternavn) > 0)
 );
 
 CREATE TABLE utleie(
@@ -57,7 +54,8 @@ CREATE TABLE utleie(
     kunde_id INT NOT NULL REFERENCES kunde(kunde_id),
     starttid TIMESTAMP NOT NULL,
     sluttid TIMESTAMP NULL,
-    pris NUMERIC(10,2) NULL
+    pris NUMERIC(10,2) NULL CHECK (pris >= 0),
+    CHECK (sluttid IS NULL OR sluttid > starttid)
 );
 
 
@@ -66,7 +64,7 @@ CREATE TABLE utleie(
 -- Sett inn testdata
 -- ============================================================================
 
--- 5 Stations
+
 INSERT INTO stasjon (navn, sted) VALUES
 ('Sentrum', 'Oslo'),
 ('Majorstuen', 'Oslo'),
@@ -75,21 +73,21 @@ INSERT INTO stasjon (navn, sted) VALUES
 ('Storo', 'Oslo');
 
 
--- 100 Locks (20 per station)
+
 INSERT INTO låse (stasjon_id, låse_nummer)
 SELECT s, l
 FROM generate_series(1,5) AS s,
      generate_series(1,20) AS l;
 
 
--- 100 Bikes (assign first 100 locks)
+
 INSERT INTO sykkel (stasjon_id, låse_nummer)
 SELECT stasjon_id, låse_nummer
 FROM låse
 LIMIT 100;
 
 
--- 5 Customers
+
 INSERT INTO kunde (mobilnummer, epost, fornavn, etternavn) VALUES
 ('90000001', 'kunde1@test.no', 'Ola', 'Nordmann'),
 ('90000002', 'kunde2@test.no', 'Kari', 'Hansen'),
@@ -98,25 +96,26 @@ INSERT INTO kunde (mobilnummer, epost, fornavn, etternavn) VALUES
 ('90000005', 'kunde5@test.no', 'Jon', 'Johansen');
 
 
--- 50 Rentals
+
 INSERT INTO utleie (sykkel_id, kunde_id, starttid, sluttid, pris)
 SELECT
     (RANDOM()*99 + 1)::INT,
     (RANDOM()*4 + 1)::INT,
-    NOW() - (RANDOM()*10 || ' days')::INTERVAL,
-    NOW() - (RANDOM()*5 || ' days')::INTERVAL,
+    start_time,
+    start_time + (RANDOM()*3 || ' days')::INTERVAL,
     ROUND((RANDOM()*200)::numeric,2)
-FROM generate_series(1,50);
+FROM (
+    SELECT
+        NOW() - (RANDOM()*10 || ' days')::INTERVAL AS start_time
+    FROM generate_series(1,50)
+) t;
 
 -- ============================================================================
 -- DBA setninger (rolle: kunde, bruker: kunde_1)
 -- ============================================================================
 
 
-CREATE ROLE admin;
 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin;
 
 
 CREATE ROLE kunde NOINHERIT;

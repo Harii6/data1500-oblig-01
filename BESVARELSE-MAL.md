@@ -21,6 +21,8 @@ sykkel_stasjon-Jeg lagde en sykkelstasjonstabell fordi oppgaven forklarte at syk
 
 Kunde-Kunder er en viktig del av systemet. De kan eksistere uten sykkelen og har sine egne egenskaper, samtidig som de har forbindelser til andre tabeller, som for eksempel sykkelen.
 
+Jeg opprettet lås fordi den representerer en uavhengig fysisk komponent i systemet med egne egenskaper og en klar relasjon til både stasjonen og sykkelen. En stasjon kan ha mange låser, og hver lås identifiseres av et låsnummer som er unikt innenfor en bestemt stasjon. Dette krever at låsen ikke bare kan modelleres som et attributt for stasjonen, men må være en separat enhet med en sammensatt primærnøkkel (stasjons-id, låsnummer) eller en surrogatnøkkel. I tillegg muliggjør en separat låsenhet korrekt modellering av forholdet mellom sykkel og fysisk plassering, siden en sykkel kan tilordnes én spesifikk lås, mens en lås kan være tom eller én sykkel. Dette gjør at låsen fungerer som et strukturelt mellomledd mellom stasjonen og sykkelen, og må derfor modelleres som en separat tabell.
+
 utleie-En utleiesykkel er en egen tabell fordi den representerer én tur mellom en kunde og en sykkel. Den lagrer informasjon om den spesifikke turen, som starttid, sluttid og pris. Disse verdiene tilhører ikke bare sykkelen eller kunden – de tilhører den turen. En kunde kan leie mange sykler over tid, og en sykkel kan leies mange ganger av forskjellige kunder. På grunn av det trenger vi en egen utleietabell for å lagre hver utleiesykkel separat.
 
 **Attributter for hver entitet:**
@@ -35,10 +37,10 @@ Forklaring:Systemet må holde oversikt over hvor sykler befinner seg. En stasjon
 
 Sykkel
 sykkel_id
+tatt_i_bruk 
 
 
-
-Forklaring:Hver sykkel må identifiseres individuelt og ha en unik ID. En sykkel kan flyttes mellom stasjoner og kan leies mange ganger over tid.
+Forklaring:Forklaring: Hver sykkel må identifiseres individuelt og ha en unik ID. En sykkel kan flyttes mellom stasjoner og kan leies mange ganger over tid. Og datoen den skal vise når den først ble lagt inn i systemet.
 
 Låse
 låse_nummer
@@ -79,9 +81,10 @@ Forklaring:Stasjons-ID lagres som INTEGER fordi det er en enkel og effektiv måt
 
 Sykkel
 sykkel_id INTEGER
+tatt_i_bruk DATE 
 
 
-Forklaring:Bike_id lagres som INTEGER for å identifisere hver sykkel unikt. Ingen andre attributter er nødvendige for selve sykkelen i denne modellen.
+Forklaring:Sykkel-ID lagres som HELTAL for å identifisere hver sykkel unikt. Og datoen den ble tatt er en dato som nøyaktig viser når den ble lagt inn i systemet.
 
 Låse
 låse_nummer smallint NOT NULL
@@ -102,58 +105,63 @@ Utleie
 utleie-ID INTEGER
 starttid Tidsstempel
 sluttid  Tidsstempel
-pris     Double
+pris     NUMERIC
 
-Forklaring:Utleie-ID lagres som INTEGER fordi det er et heltall som enkelt kan identifisere hver utleie unikt og effektivt. Starttidspunkt og sluttidspunkt lagres som TIDSTEMPEL fordi både dato og klokkeslett må registreres. Prisen lagres som HELTALL for å representere det endelige beløpet. Siden systemet bare trenger å lagre sluttbeløpet og ikke utføre komplekse valutaberegninger, er et heltall tilstrekkelig.
-
+Forklaring:Leie-ID lagres som HELE fordi det er den eneste måten å identifisere hver leiebil unikt og effektivt. Starttidspunkt og sluttidspunkt lagres som TIDSTEMPEL fordi både dato og klokkeslett må registreres. Prisen lagres numerisk for å representere sluttbeløpet, og numerisk lar oss være fleksible med desimaler ved bruk av presisjon. Siden systemet må lagre sluttbeløpet og ikke utføre komplekse valutaberegninger, er dette tilstrekkelig.
 
 **`CHECK`-constraints:**
 
 Stasjon
 stasjons-ID NOT NULL
 navn VARCHAR(150) NOT NULL
+CHECK (char_length(navn) > 0)
 sted VARCHAR(150) NOT NULL
+CHECK (char_length(sted) > 0),
 
 
-Forklaring:En stasjon må ha en ID, et navn og en plassering for å eksistere i systemet. Derfor er alle disse feltene satt til IKKE NULL. Hvis noe av denne informasjonen manglet, ville ikke stasjonen være brukbar fordi systemet ikke ville vite hva den heter eller hvor den befinner seg. Disse begrensningene sørger for at bare komplette og gyldige stasjoner kan lagres i databasen.
+Forklaring:Hver stasjon må ha en unik ID, et navn og et sted for å være gyldig i systemet. Derfor er stasjons-ID, navn og sted satt til NOT NULL, slik at ingen av disse feltene kan mangle. I tillegg sørger CHECK (char_length(navn) > 0) og CHECK (char_length(sted) > 0) for at navn og sted ikke bare eksisterer, men også faktisk inneholder tekst. Disse begrensningene sikrer at systemet kun lagrer komplette og brukbare stasjoner, som kan identifiseres, vises på kart og brukes i logistikk eller søk.
 
 Sykkel
 sykkel_id NOT NULL
+tatt_i_bruk DATE NOT NULL
 
-
-
-Forklaring:Bike_id lagres som INTEGER for å identifisere hver sykkel unikt. Ingen andre attributter er nødvendige for selve sykkelen i denne modellen.
+Forklaring:Hver sykkel må ha en unik identifikator (sykkel_id) og en startdato (tatt_i_bruk) som ikke kan være NULL. sykkel_id gjør det mulig å spore sykkelen i systemet, mens tatt_i_bruk dokumenterer når sykkelen ble tilgjengelig for bruk. Disse begrensningene sikrer at alle sykler i databasen faktisk eksisterer og kan administreres korrekt, og forhindrer at ufullstendige eller ugyldige sykkelposter opprettes.
 
 Låse
 låse_nummer smallint NOT NULL
+CHECK (Låse > 0)
 
-Forklaring:Låsnummeret kan ikke være null fordi en lås ikke endres over tid innenfor en stasjon.
+Forklaring:Låser må ha et låse_nummer som ikke kan være NULL, og CHECK (låse_nummer > 0) sikrer at nummeret alltid er et positivt tall. Dette garanterer at hver lås kan identifiseres og brukes på en stasjon. Uten disse begrensningene ville systemet kunne ha låser uten identitet, noe som ville gjøre det umulig å knytte sykkelbruk til en spesifikk fysisk lås.
 
 
 Kunde
 kunde-ID NOT NULL
 mobilnummer VARCHAR(25) NOT NULL
+CHECK (char_length(mobil_nummer) BETWEEN 6 AND 25)
 e-post      VARCHAR(150) NOT NULL
+CHECK (position('@' in e_post) > 1),
 fornavn     VARCHAR(150) NOT NULL
+CHECK (char_length(for_navn) > 0)
 etternavn   VARCHAR(150) NOT NULL
+CHECK (char_length(etter_navn) > 0)
 
-Forklaring:En kunde må oppgi mobilnummer, e-post, fornavn og etternavn ved registrering. Derfor er alle disse feltene satt til IKKE NULL. Hvis noe av denne informasjonen manglet, kunne ikke kunden registrere seg ordentlig, motta bekreftelser eller bli belastet for utleie. Disse begrensningene sikrer at bare fullt registrerte kunder finnes i systemet, og at betalinger og kommunikasjon kan fungere som de skal.
+Forklaring:Hver kunde må oppgi kunde-ID, mobilnummer, e-post, fornavn og etternavn, og alle disse feltene er NOT NULL. CHECK (char_length(mobilnummer) BETWEEN 6 AND 25) sikrer at mobilnummeret har realistisk lengde, mens CHECK (position('@' in e_post) > 1) sjekker at e-postadressen inneholder minst ett tegn før @. CHECK-reglene på fornavn og etternavn forhindrer tomme navn. Samlet sørger disse begrensningene for at alle kunder er fullt registrert, slik at kommunikasjon, fakturering og identifikasjon kan fungere korrekt.
 
 
 Utleie
 utleie-ID NOT NULL
 starttid Tidsstempel NOT NULL
 sluttid  Tidsstempel NULL
-pris     Double NULL
+pris     NUMERIC NULL
+CHECK (price_cents >= 0),
 
-Forklaring:En leieperiode må alltid ha en starttid, fordi systemet må vite når sykkelen ble låst opp. Derfor er starttid IKKE NULL. Sluttid og pris kan være NULL fordi de ikke er kjent ved starten av leieperioden. Så lenge sykkelen fortsatt er i bruk, er det ingen returtid og ingen endelig pris ennå. Når sykkelen returneres, fylles disse verdiene ut. Dette oppsettet lar systemet håndtere både aktive og fullførte leieperioder på en naturlig måte.
-
+Forklaring:Hver utleiepost må ha en utleie-ID og en starttid (NOT NULL) for å kunne registreres. sluttid og pris kan være NULL, fordi leien kan være aktiv og dermed ikke ha en avsluttet tid eller endelig pris ennå. CHECK (price_cents >= 0) sikrer at prisene aldri er negative. Dette oppsettet gjør det mulig å håndtere både aktive og fullførte leieperioder på en konsistent måte, samtidig som det opprettholder dataintegritet og realistiske prisverdier.
 
 **ER-diagram:**
 
 [Legg inn mermaid-kode eller eventuelt en bildefil fra `mermaid.live` her]
 
---- ! !!![img.png](img.png)
+--- !![img.png](img.png)
 
 ### Oppgave 1.3: Primærnøkler
 
@@ -169,7 +177,7 @@ Forklaring: station_id er primærnøkkelen fordi hver stasjon må være unik i s
 
 Sykkel
 sykkel_id NOT NULL
-
+tatt_i_bruk DATE NOT NULL
 
 Forklaring:sykkel_id er primærnøkkelen fordi hver fysiske sykkel må spores. Sykler flyttes mellom stasjoner og er involvert i flere leieperioder over tid. Systemet må kunne skille en sykkel fra en annen til enhver tid.
 
@@ -196,7 +204,7 @@ Utleie
 utleie-ID NOT NULL
 starttid Tidsstempel NOT NULL
 sluttid  Tidsstempel NULL
-pris     Double NULL
+pris     NUMERIC NULL
 
 Forklaring: rental_id er primærnøkkelen fordi hver utleie representerer en unik transaksjon. En kunde kan leie flere sykler over tid, og en sykkel kan leies mange ganger. Kombinasjonen av sykkel og kunde vil ikke være unik over tid. Derfor er en separat utleie-ID nødvendig for å identifisere hver utleieforekomst og lagre starttidspunkt, sluttidspunkt og sluttbeløp.
 
@@ -220,7 +228,7 @@ Av denne grunn er de sterke naturlige nøkkelkandidater.
 
 [Legg inn mermaid-kode eller eventuelt en bildefil fra `mermaid.live` her]
 
----!!![img_1.png](img_1.png)
+---!![img_1.png](img_1.png)
 
 ### Oppgave 1.4: Forhold og fremmednøkler
 
@@ -244,7 +252,9 @@ Forholdet mellom kunde og utleie er også én-til-mange.
 
 En kunde kan ha mange utleieobjekter over tid, men hver utleieobjekt tilhører nøyaktig én kunde.
 
-Det er ingen direkte sammenheng mellom stasjon og utleie eller mellom kunde og sykkel, siden utleie fungerer som den sammenkoblede enheten mellom kunder og sykler.
+Det er ingen direkte sammenheng mellom stasjon og utleie.
+
+Selv om det ikke finnes en direkte fremmednøkkel mellom kunde og sykkel, eksisterer det en konseptuell mange-til-mange-relasjon mellom disse. En kunde kan leie mange sykler over tid, og en sykkel kan leies av mange kunder over tid. Denne mange-til-mange-relasjonen er implementert gjennom den assosiative entiteten utleie, som inneholder fremmednøkler til både kunde og sykkel. Dermed fungerer utleie som koblingstabell mellom kunde og sykkel.
 ]
 
 **Fremmednøkler:**
@@ -263,7 +273,7 @@ I Rental er bike_ID en fremmednøkkel som refererer til Bike, og customer_ID er 
 
 [Legg inn mermaid-kode eller eventuelt en bildefil fra `mermaid.live` her]
 
----!![img_2.png](img_2.png)
+---![img_2.png](img_2.png)
 
 ### Oppgave 1.5: Normalisering
 
@@ -435,10 +445,7 @@ CREATE USER kunde_1 WITH PASSWORD 'passord123';
 ```sql
 [Skriv din SQL-kode for å tildele rettigheter til rollen her:
 
-CREATE ROLE admin;
 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO admin;
 
 
 GRANT SELECT ON stasjon TO kunde;
@@ -483,6 +490,8 @@ JOIN sykkel s ON u.sykkel_id = s.sykkel_id;
 VIEW er en lagret spørring enn en kunde kan bruke den. Beskytter bare gjennom den visningen og beskytter ikke innsetting/oppdatering/sletting.
 Du må opprette resten av sikkerheten selv, og sikkerhet/policy på radnivå håndheves på databasemotornivå.
 Gjelder automatisk for ALLE spørringer.
+
+(RLS)/POLICIES er et sterkere system som håndhever tilgangskontroll direkte på tabellnivå. Når RLS er aktivert, bruker databasen automatisk filtreringspolicyer på alle spørringer som kjøres på den tabellen, uavhengig av hvordan spørringen er skrevet. Policyer definerer hvilke rader en bruker har lov til å lese eller endre, vanligvis basert på betingelser som samsvar med en customer_id. I motsetning til en visning kan ikke RLS omgås ved å spørre basistabellen direkte, fordi begrensningen håndheves av selve databasemotoren.
 
 ]
 
@@ -806,17 +815,37 @@ Databasen er den endelige autoriteten på integritet og beskytter mot feil eller
 
 **Hva har du lært så langt i emnet:**
 
-[Skriv din refleksjon her - diskuter sentrale konsepter du har lært]
+[Skriv din refleksjon her - diskuter sentrale konsepter du har lært:
+
+Så langt i kurset har jeg lært hvordan man går fra et ikke-digitalt skjema til en digital relasjonsdatabase gjennom nivåer:
+konseptuell modellering, logisk skjema og fysisk implementering i PostgreSQL.
+Jeg har fått en forståelse av hvordan enheter, attributter og relasjoner identifiseres,
+hvordan kardinalitet styrer plassering av fremmednøkler, 
+og hvordan mange-til-mange-relasjoner må løses med join-tabeller.
+Jeg har også lært viktigheten av normalisering og hvordan 1NF, 2NF og 3NF reduserer redundans og inkonsekvens.
+Videre har jeg fått innsikt i hvordan begrensninger, datatyper og tilgangskontroll faktisk håndhever forretningsregler på databasenivå, 
+og hvordan databasen er en del av et flerlagssystem der ansvar må fordeles bevisst.
+
+]
 
 **Hvordan har denne oppgaven bidratt til å oppnå læringsmålene:**
 
-[Skriv din refleksjon her - koble oppgaven til læringsmålene i emnet]
+[Skriv din refleksjon her - koble oppgaven til læringsmålene i emnet:
+
+Oppgaven er direkte relatert til læringsmålene om å kunne designe, implementere og analysere en relasjonsdatabase. I del 1 jobbet jeg eksplisitt med å identifisere enheter, definere attributter, bestemme kardinalitet og plassere primær- og fremmednøkler, noe som oppfyller læringsmålene om å kunne utvikle en korrekt datamodell og forstå sammenhengen mellom konseptuelle og logiske modeller. Arbeidet med normalisering er direkte knyttet til målet om å kunne redusere redundans og sikre konsistens gjennom 1NF, 2NF og 3NF. I del 2 oppfylte jeg læringsmålet om å kunne implementere en database i PostgreSQL ved å skrive SQL-skript, velge riktige datatyper og legge inn begrensninger som håndhever forretningsregler. Oppgavene om roller, visninger og tilgangskontroll i del 3 er direkte knyttet til læringsmålet om sikkerhet og autorisasjon i databaser. Refleksjonsoppgavene i del 4, spesielt om lagringskapasitet, flat fil versus relasjonsdatabase og validering i flerlagssystemer, kobler seg til læringsmålene om å kunne analysere datalagring, evaluere ulike arkitekturer og forstå databasen som en del av et større system.
+]
 
 Se oversikt over læringsmålene i en PDF-fil i Canvas https://oslomet.instructure.com/courses/33293/files/folder/Plan%20v%C3%A5ren%202026?preview=4370886
 
 **Hva var mest utfordrende:**
 
-[Skriv din refleksjon her - diskuter hvilke deler av oppgaven som var mest krevende]
+[Skriv din refleksjon her - diskuter hvilke deler av oppgaven som var mest krevende:
+
+Den mest utfordrende delen var å identifisere alle nødvendige enheter og modellere relasjonene riktig før implementering. I starten opprettet jeg bare tabeller for sykkel, stasjon, kunde og utleie, men oppdaget senere at jeg manglet en separat enhet for låser da jeg analyserte kardinalitet og relasjoner mer presist. Dette viste at jeg i utgangspunktet tenkte for overfladisk og fokuserte på å lage tabeller raskt i stedet for å fullføre modelleringen. Det var også utfordrende å sikre at modellen tilfredsstilte 3NF uten å introdusere unødvendig kompleksitet. Å forstå hvor man skulle plassere fremmednøkler basert på relasjonstype, var en viktig del av selve prosessen.
+
+Jeg har lært at databasedesign ikke bare handler om å skrive SQL. En god logisk modell er grunnlaget for alt som kommer senere. Hvis relasjoner eller kardinalitet er feildefinert, vil implementeringen enten bli inkonsekvent eller kreve omstrukturering. Jeg har også lært at normalisering er et verktøy for å sikre struktur og redusere redundans. Videre har jeg forstått at databasen ikke bare lagrer data, men håndhever regler gjennom begrensninger, roller og tilgangskontroll. Prosessen med å designe fra bunnen av har vist meg at grundig modellering i begynnelsen sparer betydelig arbeid senere og gir en mer robust og skalerbar løsning.
+
+]
 
 **Hva har du lært om databasedesign:**
 
@@ -828,12 +857,20 @@ Se oversikt over læringsmålene i en PDF-fil i Canvas https://oslomet.instructu
 
 **Plassering av SQL-spørringer:**
 
-[Bekreft at du har lagt SQL-spørringene i `test-scripts/queries.sql`]
+[Bekreft at du har lagt SQL-spørringene i `test-scripts/queries.sql`:
+
+Alle SQL-spørringer plasseres i filen test-scripts/queries.sql, som er montert i containeren under /test-scripts. Dette gjør at de kan kjøres mens PostgreSQL-containeren kjører, enten ved å bruke psql fra containerskallet eller direkte fra verten med docker exec. Spørringene ble plassert i denne filen for å skille testdataspørringene fra init-skriptet, og filen inneholder nå alle nødvendige SELECT-setninger for å hente data fra sykkel-, kunde- og utleietabellene, samt sjekke databaseskjemaer.
+
+]
 
 
 **Eventuelle feil og rettelser:**
 
-[Skriv ditt svar her - hvis noen tester feilet, forklar hva som var feil og hvordan du rettet det]
+[Skriv ditt svar her - hvis noen tester feilet, forklar hva som var feil og hvordan du rettet det:
+
+De opprinnelige feilene skyldtes at test-queries ble kjørt på feil database. Init-skriptet opprettet tabellene i databasen sykkel_system, mens containeren ble konfigurert med POSTGRES_DB=oblig01. Før testfilen ble kjørt, ble psql koblet til oblig01, som ikke inneholdt noen av tabellene, og dette ga “relation does not exist”-feil for alle tabeller. Løsningen var å koble til den riktige databasen ved å bruke \c sykkel_system inne i psql, eller spesifisere databasen direkte med -d sykkel_system når filen kjøres. Etter denne endringen kjørte alle spørringene korrekt, og resultatene viste at tabellene og dataene eksisterte som forventet. Ingen syntaksfeil ble funnet i selve spørringene; den eneste nødvendige rettelsen var å sikre riktig databasekobling.
+
+]
 
 ---
 
